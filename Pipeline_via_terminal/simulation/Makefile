@@ -16,7 +16,7 @@ help:
 	@echo "Usage: make <program_name> (e.g. make addition)"
 
 # Generic Rule for all programs
-sort addition fibonacci shifting negative xor:
+sort addition negative:
 	# 1. Generate Hex Files
 	$(MAKE) clean -C $(MEM_GEN)
 	$(MAKE) $@ -C $(MEM_GEN)
