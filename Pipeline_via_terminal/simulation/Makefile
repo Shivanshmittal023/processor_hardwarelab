@@ -10,7 +10,7 @@ XVLOG = xvlog
 XELAB = xelab
 XSIM  = xsim
 
-.PHONY: help clean sort addition fibonacci shifting negative xor
+.PHONY: help clean sort addition negative
 
 help:
 	@echo "Usage: make <program_name> (e.g. make addition)"
