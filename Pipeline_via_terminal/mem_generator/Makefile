@@ -14,11 +14,8 @@ CFLAGS  = -march=rv32i -mabi=ilp32
 
 #////Source for c code file ///////////////////////////
 SRC_ADDITION     = code_addition.c
-SRC_FIBONACCI     = code_fibonacci.c
 SRC_SORT     = code_sort.c
-SRC_SHIFTING = code_shifting.c
 SRC_NEGATIVE = code_negative.c
-SRC_XOR = code_xor.c
 
 TARGET   = code.elf
 
@@ -42,29 +39,8 @@ sort: $(SRC_SORT)
 	$(OBJDUMP) -d $(TARGET) > ./imem_dmem/code.dis
 	cd imem_dmem && python bin2hex.py
 
-fibonacci: $(SRC_FIBONACCI)
-	$(CC) -c  $(SRC_FIBONACCI) -o $(TARGET) $(CFLAGS)
-	$(OBJCOPY) -O binary $(TARGET) ./imem_dmem/imem.bin
-	$(OBJCOPY) -j .data -O binary $(TARGET) ./imem_dmem/dmem.bin
-	$(OBJDUMP) -d $(TARGET) > ./imem_dmem/code.dis
-	cd imem_dmem && python bin2hex.py
-
-shifting: $(SRC_SHIFTING)
-	$(CC) -c  $(SRC_SHIFTING) -o $(TARGET) $(CFLAGS)
-	$(OBJCOPY) -O binary $(TARGET) ./imem_dmem/imem.bin
-	$(OBJCOPY) -j .data -O binary $(TARGET) ./imem_dmem/dmem.bin
-	$(OBJDUMP) -d $(TARGET) > ./imem_dmem/code.dis
-	cd imem_dmem && python bin2hex.py
-
 negative: $(SRC_NEGATIVE)
 	$(CC) -c  $(SRC_NEGATIVE) -o $(TARGET) $(CFLAGS)
-	$(OBJCOPY) -O binary $(TARGET) ./imem_dmem/imem.bin
-	$(OBJCOPY) -j .data -O binary $(TARGET) ./imem_dmem/dmem.bin
-	$(OBJDUMP) -d $(TARGET) > ./imem_dmem/code.dis
-	cd imem_dmem && python bin2hex.py
-
-xor: $(SRC_XOR)
-	$(CC) -c  $(SRC_XOR) -o $(TARGET) $(CFLAGS)
 	$(OBJCOPY) -O binary $(TARGET) ./imem_dmem/imem.bin
 	$(OBJCOPY) -j .data -O binary $(TARGET) ./imem_dmem/dmem.bin
 	$(OBJDUMP) -d $(TARGET) > ./imem_dmem/code.dis
