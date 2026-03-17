@@ -43,7 +43,7 @@ wire        dmem_write_ready;
 wire [31:0] dmem_write_addr;
 wire [31:0] dmem_write_data;
 wire [3:0]  dmem_write_byte;
-wire branch_stall;
+
 // CPU Status interconnects
 wire        exception;
 wire [31:0] pc_out;
@@ -57,7 +57,7 @@ pipe DUT (
    .stall(1'b0),
    .exception(exception),
    .pc_out(pc_out),
-   .branch_stall(branch_stall),
+
    // Instruction Memory Interface
    .inst_mem_is_valid(inst_mem_is_valid),
    .inst_mem_read_data(inst_mem_read_data),
@@ -131,7 +131,7 @@ always @(posedge clk) begin
    // 1. Print Time and Result when memory is written
    // This is placed before the PC display so it appears above it in the terminal
    if(dmem_write_ready) begin
-      $display("time: %17t ,result = %0d, instruction = %h , stall = %b", $time, dmem_write_data, inst_mem_read_data , branch_stall);
+      $display("time: %17t ,result = %0d, instruction = %h", $time, dmem_write_data, inst_mem_read_data);
    end
 
    // 2. Print the PC on every clock cycle
@@ -146,7 +146,7 @@ always @(posedge clk) begin
     end
 
     else begin
-      $display("time = %0t , next_pc = %08h , instruction = %h, stall = %b",$time, inst_fetch_pc,inst_mem_read_data,branch_stall);
+      $display("next_pc = %08h , instruction = %h", inst_fetch_pc,inst_mem_read_data);
     end
 
    //$display("no way");

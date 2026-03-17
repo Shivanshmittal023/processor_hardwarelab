@@ -30,13 +30,8 @@ module pipe
    output               dmem_write_ready,
    output [31:0]        dmem_write_addr,
    output [31:0]        dmem_write_data,
-   output [3:0]         dmem_write_byte,
-   output branch_stall
+   output [3:0]         dmem_write_byte
 );
-
-
-
-
 
    // ------------------------------------------------------//
    // Declaring Wires and Registers
@@ -79,7 +74,7 @@ module pipe
    wire        [31: 0] next_pc;
    wire        [31: 0] write_address;
    wire                branch_taken;
-  // wire                branch_stall;
+   wire                branch_stall;
    wire        [31:0]  alu_operand1;
    wire        [31:0]  alu_operand2;
 
@@ -96,9 +91,7 @@ module pipe
    wire        [ 3: 0] wb_write_byte;
    wire        [31: 0] wb_write_data;
    wire        [31: 0] wb_read_data;
-   wire [31:0] wb_pc;
 
-   wire[31:0] pc_from_exe;
    // ------------------------------------------------------//
    // Top-Level Assignments
    // ------------------------------------------------------//
@@ -122,14 +115,12 @@ module pipe
       .clk                 (clk),
       .reset               (!reset),
       .stall               (stall),
-      .next_pc(next_pc),
-      .flush(wb_stall),
       .exception           (exception),
       .inst_mem_is_valid   (inst_mem_is_valid),
       .inst_mem_read_data  (inst_mem_read_data),
       .stall_read_i        (stall_read),
-      .inst_fetch_pc       (fetch_pc),
-      .instruction_i       (inst_mem_read_data),
+      .inst_fetch_pc       (inst_fetch_pc),
+      .instruction_i       (instruction),
       .wb_stall            (wb_stall),
       .wb_alu_to_reg       (wb_alu_to_reg),
       .wb_mem_to_reg       (wb_mem_to_reg),
@@ -201,7 +192,6 @@ module pipe
    execute execute (
       .clk              (clk),
       .reset            (!reset),
-      .curr_pc_to_pipe(pc_from_exe),
       .reg_rdata1       (reg_rdata1),
       .reg_rdata2       (reg_rdata2),
       .execute_imm      (execute_immediate),
@@ -226,7 +216,7 @@ module pipe
       .alu_operand2     (alu_operand2),
       .write_address    (write_address),
       .branch_stall     (branch_stall),
-      //.next_pc          (next_pc),
+      .next_pc          (next_pc),
       .branch_taken     (branch_taken),
       .wb_result        (wb_result),
       .wb_mem_write     (wb_mem_write),
@@ -246,8 +236,7 @@ module pipe
       if (reset)
          fetch_pc <= RESET;
       else if (!stall_read)
-         fetch_pc <= wb_stall ? wb_pc : next_pc;
-
+         fetch_pc <= branch_stall ? fetch_pc : next_pc;
    end
 
    // ------------------------------------------------------//
@@ -257,14 +246,13 @@ module pipe
       .clk                 (clk),
       .reset               (!reset),
       .stall_read_i        (stall_read),
-      .fetch_pc_i          (pc_from_exe),
+      .fetch_pc_i          (fetch_pc),
       .wb_branch_i         (wb_branch),
       .wb_mem_to_reg_i     (wb_mem_to_reg),
-      .mem_write_i         (mem_write && !wb_stall),  
+      .mem_write_i         (mem_write && !branch_stall),  
       .write_address_i     (write_address),
       .alu_operand2_i      (alu_operand2),
       .alu_operation_i     (alu_operation),
-
       .wb_alu_operation_i  (wb_alu_operation),
       .wb_read_address_i   (wb_read_address),
       .dmem_read_data_i    (dmem_read_data),
@@ -276,7 +264,7 @@ module pipe
       .wb_write_data_o     (wb_write_data),
       .wb_write_byte_o     (wb_write_byte),
       .wb_read_data_o      (wb_read_data),
-      .inst_fetch_pc_o     (wb_pc),
+      .inst_fetch_pc_o     (),
       .wb_stall_first_o    (wb_stall_first),
       .wb_stall_second_o   (wb_stall_second)
    );

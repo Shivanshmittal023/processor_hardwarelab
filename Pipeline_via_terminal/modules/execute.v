@@ -8,6 +8,7 @@ module execute
 (
 	input clk,
 	input reset,
+	
 
 	// -----------------------------	// FROM ID/EX	// -----------------------------
 	input  [31:0] reg_rdata1,
@@ -52,14 +53,10 @@ module execute
 	output    	wb_branch_nxt,
 	output    	wb_mem_to_reg,
 	output [1:0]  wb_read_address,
-	output [2:0]  mem_alu_operation,
-	output [31:0] curr_pc_to_pipe
+	output [2:0]  mem_alu_operation
 );
 
 `include "opcode.vh"
-
-
-
 
 ////////////////////////////////////////////////////////////// LOCAL INTERNAL SIGNALS/////////////////////////////////
 reg  [31:0] ex_result;
@@ -79,63 +76,60 @@ assign ex_result_subu = alu_operand1 - alu_operand2;
 ////////////////////////////////////////////////////////////// Address & branch stall////////////////////////////////////////
 assign write_address = alu_operand1 + execute_imm;
 assign branch_stall  = wb_branch_nxt_i || wb_branch_i;
-//assign stall_read = wb_branch_nxt_i || wb_branch_i;
 
 ////////////////////////////////////////////////////////////// Next PC logic////////////////////////////////////////////////////////////
 always @(*) begin
-	next_pc  	= fetch_pc + 4;
-	branch_taken = !branch_stall;
-	case (1'b1)
-    	jal  : next_pc = pc + execute_imm;
-    	jalr : next_pc = alu_operand1 + execute_imm;
-    	branch: begin
-        	case (alu_op)
-            	BEQ:  begin
-                	next_pc = (ex_result_subs == 0) ? pc + execute_imm : fetch_pc + 4;
-					if (ex_result_subs != 0)
-                    	branch_taken = 1'b0;
-				end
-            	BNE:  begin
-                	next_pc = (ex_result_subs!=0) ? pc + execute_imm : fetch_pc + 4;
-                	if (ex_result_subs == 0)
-                    	branch_taken = 1'b0;
-				end
-            	BLT:  begin
-                	next_pc = ex_result_subs[32] ? pc + execute_imm : fetch_pc + 4;
-					if (!ex_result_subs[32])
-                    	branch_taken = 1'b0;
-				end
-            	BGE:  begin
-                	next_pc =  (!ex_result_subs[32])? pc + execute_imm: fetch_pc + 4;              	
-                	if (ex_result_subs[32])
-                    	branch_taken = 1'b0;
-				end
-            	BLTU: begin
-                	next_pc = ex_result_subu[32] ? pc + execute_imm : fetch_pc + 4;
-					if (!ex_result_subu[32])
-                    	branch_taken = 1'b0;
-				end
-            	BGEU: begin
-                	next_pc = (!ex_result_subu[32]) ? pc + execute_imm : fetch_pc + 4;                          	                         	
-                	if (ex_result_subu[32])
-                    	branch_taken = 1'b0;
-				end
-            	default: next_pc = fetch_pc + 4;
-        	endcase
-    	end
-    	default: begin     	 
-        	next_pc  	= fetch_pc + 4;
-			branch_taken = 1'b0;
-    	end
-	endcase
+    next_pc      = pc + 4;
+    branch_taken = !branch_stall;
+    case (1'b1)
+        jal  :begin  next_pc = (pc - 4) + execute_imm; 
+			branch_taken = 1'b1;
+		end 
+        jalr :begin  next_pc = alu_operand1 + execute_imm;
+			branch_taken = 1'b1;
+		end // jalr uses register, no PC fix needed
+        branch: begin
+            case (alu_op)
+                BEQ:  begin
+                    next_pc = (ex_result_subs == 0) ? (pc - 4) + execute_imm : fetch_pc + 4;
+                    if (ex_result_subs != 0) branch_taken = 1'b0;
+                end
+                BNE:  begin
+                    next_pc = (ex_result_subs != 0) ? (pc - 4) + execute_imm : fetch_pc + 4;
+                    if (ex_result_subs == 0) branch_taken = 1'b0;
+                end
+                BLT:  begin
+                    next_pc = ex_result_subs[32] ? (pc - 4) + execute_imm : fetch_pc + 4;
+                    if (!ex_result_subs[32]) branch_taken = 1'b0;
+                end
+                BGE:  begin
+                    next_pc = (!ex_result_subs[32]) ? (pc - 4) + execute_imm : fetch_pc + 4;                
+                    if (ex_result_subs[32]) branch_taken = 1'b0;
+                end
+                BLTU: begin
+                    next_pc = ex_result_subu[32] ? (pc - 4) + execute_imm : fetch_pc + 4;
+                    if (!ex_result_subu[32]) branch_taken = 1'b0;
+                end
+                BGEU: begin
+                    next_pc = (!ex_result_subu[32]) ? (pc - 4) + execute_imm : fetch_pc + 4;                                                                                                         
+                    if (ex_result_subu[32]) branch_taken = 1'b0;
+                end
+                default: next_pc = fetch_pc + 4;
+            endcase
+        end
+        default: begin       
+            next_pc      = fetch_pc + 4;
+            branch_taken = 1'b0;
+        end
+    endcase
 end
 
 ////////////////////////////////////////////////////////////// ALU result logic////////////////////////////////////////////////////////////
 always @(*) begin
 	case (1'b1)
     	mem_write: ex_result = alu_operand2;
-		jal,
-    	jalr:  	ex_result = pc + 4;
+		jal, 
+    	jalr:  	ex_result = pc;
     	lui:   	ex_result = execute_imm;
 		alu: begin
         	case (alu_op)  
@@ -161,14 +155,12 @@ ex_mem_wb_reg u_ex_mem_wb (
 	.stall_n    	(stall_read),
 	.ex_result  	(ex_result),
 	.mem_write  	(mem_write && !branch_stall),
-	.alu_to_reg 	(alu | lui | jal | jalr | mem_to_reg),
+	.alu_to_reg 	((alu | lui | jal | jalr | mem_to_reg ) && !branch_stall),
 	.dest_reg_sel   (dest_reg_sel),
 	.branch_taken   (branch_taken),
 	.mem_to_reg 	(mem_to_reg),
 	.read_address   (dmem_raddr),
 	.alu_operation  (alu_op),
-	.curr_pc(next_pc),
-	.curr_pc_w(curr_pc_to_pipe),
 
 	.ex_mem_result    	(wb_result),
 	.ex_mem_mem_write 	(wb_mem_write),
@@ -189,8 +181,6 @@ module ex_mem_wb_reg (
 
 	// Data
 	input  [31:0] ex_result,
-	input [31:0] curr_pc,
-	output reg [31:0] curr_pc_w,
 
 	// Control inputs from EX/MEM
 	input     	mem_write,
@@ -224,7 +214,6 @@ always @(posedge clk or negedge reset_n) begin
     	ex_mem_mem_to_reg 	<= 1'b0;
     	ex_mem_read_address   <= 2'h0;
     	ex_mem_alu_operation  <= 3'h0;
-		curr_pc_w <= 32'h0;
 	end
 	else if (!stall_n) begin
     	ex_mem_result     	<= ex_result;
@@ -236,7 +225,6 @@ always @(posedge clk or negedge reset_n) begin
 		ex_mem_mem_to_reg 	<= mem_to_reg;
     	ex_mem_read_address   <= read_address;
     	ex_mem_alu_operation  <= alu_operation;
-		curr_pc_w <= curr_pc;
 	end
 end
 endmodule

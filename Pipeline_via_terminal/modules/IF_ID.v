@@ -8,7 +8,7 @@ module IF_ID
     input reset,
     input  stall,
     output reg exception,
-    input flush,
+
     // Instruction memory interface
     input inst_mem_is_valid,
     input  [31:0]inst_mem_read_data,
@@ -50,8 +50,7 @@ module IF_ID
     output [4:0]  dest_reg_sel_w,
     output [2:0]  alu_operation_w,
     output        illegal_inst_w,
-    output [31:0] instruction_o,
-    output reg[31:0] next_pc
+    output [31:0] instruction_o
 );
 
 `include "opcode.vh"
@@ -60,9 +59,8 @@ module IF_ID
 reg  [31:0]immediate;
 reg         illegal_inst;
 
-
 ////////////////////////////////////////////////////////////// IF stage////////////////////////////////////////////////////////////
-assign instruction_o =  (stall_read_i ? NOP : inst_mem_read_data);
+assign instruction_o = (inst_mem_read_data == 32'b0) ? NOP : (stall_read_i ? NOP : inst_mem_read_data);
 
 ////////////////////////////////////////////////////////////// Exception detection////////////////////////////////////////////////////////////
 always @(posedge clk or negedge reset) begin
@@ -70,8 +68,6 @@ always @(posedge clk or negedge reset) begin
         exception <= 1'b0;
     else if (illegal_inst || inst_mem_offset != 2'b00)
         exception <= 1'b1;
-    else 
-        next_pc <= inst_fetch_pc+4;
 end
 
 ////////////////////////////////////////////////////////////// ID stage: immediate generation///////////////////////////////////////////////////////////
@@ -101,7 +97,7 @@ id_ex_reg u_id_ex (
 	.clk        	(clk),
 	.reset_n    	(reset),
 	.stall_n    	(stall_read_i),
-    .flush(flush),
+
 	// From ID
 	.immediate_i	(immediate),
 	.immediate_sel_i(
@@ -121,7 +117,6 @@ id_ex_reg u_id_ex (
       	instruction_i[`FUNC3] == ADD)
 	),
 	.pc_i       	(inst_fetch_pc),
-    
 	.src1_sel_i 	(instruction_i[`RS1]),
 	.src2_sel_i 	(instruction_i[`RS2]),
 	.dest_reg_sel_i (instruction_i[`RD]),
@@ -172,8 +167,6 @@ module id_ex_reg (
     input  [4:0]  dest_reg_sel_i,
     input  [2:0]  alu_op_i,
     input         illegal_inst_i,
-    
-    input flush,
 
     // Outputs to EX
     output reg [31:0] execute_immediate_o,
@@ -192,11 +185,10 @@ module id_ex_reg (
     output reg [4:0]  dest_reg_sel_o,
     output reg [2:0]  alu_op_o,
     output reg        illegal_inst_o
-    
 );
 
 always @(posedge clk or negedge reset_n) begin
-    if (!reset_n || flush) begin
+    if (!reset_n) begin
         execute_immediate_o <= 32'h0;
         immediate_sel_o     <= 1'b0;
         alu_o               <= 1'b0;
